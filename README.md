@@ -3,6 +3,9 @@
 
 Alfred workflow for easily translate and get the gender of the german words
 
+* Download the workflow from here: [https://github.com/ignazioc/DerDieDas/releases/tag/1.0](https://github.com/ignazioc/DerDieDas/releases/tag/1.0)
+* Request your dictionary (DE->EN) for free from the dict.cc website: [https://www1.dict.cc/translation_file_request.php?l=e](https://www1.dict.cc/translation_file_request.php?l=e)
+
 This workflow is based on the dict.cc dictionary.
 Accordingly to the "Terms of Use" of dict.cc, this repository doesn't contain the dictionary data, but you can request it for free visiting this page:
 [link](https://www1.dict.cc/translation_file_request.php?l=e)
