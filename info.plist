@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>com.ignazioc.tools</string>
+	<key>category</key>
+	<string>Productivity</string>
+	<key>connections</key>
+	<dict>
+		<key>7DD3BDE5-A157-42E5-9376-F681FB50A4EE</key>
+		<array/>
+	</dict>
+	<key>createdby</key>
+	<string>Ignazio Calo'</string>
+	<key>description</key>
+	<string>based on dict.cc</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>DerDieDas</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>ddd</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>2</integer>
+				<key>queuemode</key>
+				<integer>2</integer>
+				<key>runningsubtext</key>
+				<string>searching...</string>
+				<key>script</key>
+				<string>#!/usr/bin/env ruby
+require 'json'
+class Result
+
+  def initialize
+    @arg = nil
+    @autocomplete = nil
+    @icon = nil
+    @mods = {}
+    @quicklookurl = nil
+    @subtitle = nil
+    @text = {}
+    @title = nil
+    @type = nil
+    @uid = nil
+    @valid = true
+
+    @simple_values = [
+      'arg',
+      'autocomplete',
+      'quicklookurl',
+      'subtitle',
+      'title',
+      'uid',
+    ]
+
+    @valid_values = {
+      type: ['default', 'file', 'file:skipcheck'],
+      icon: ['fileicon', 'filetype'],
+      text: ['copy', 'largetype'],
+      mod: ['shift', 'fn', 'ctrl', 'alt', 'cmd']
+    }
+  end
+
+  public
+  def valid(valid)
+    @valid = !!valid
+    self
+  end
+
+  public
+  def type(type, verify_existence = true)
+    return self unless @valid_values[:type].include?(type.to_s)
+
+    if type === 'file' &amp;&amp; !verify_existence
+      @type = 'file:skipcheck'
+    else
+      @type = type
+    end
+
+    self
+  end
+
+  public
+  def icon(path, type = nil)
+    @icon = {
+      path: path
+    }
+
+    @icon[:type] = type if @valid_values[:icon].include?(type.to_s)
+
+    self
+  end
+
+  public
+  def fileicon_icon(path)
+    icon(path, 'fileicon')
+  end
+
+  public
+  def filetype_icon(path)
+    icon(path, 'filetype')
+  end
+
+  public
+  def text(type, text)
+    return self unless @valid_values[:text].include?(type.to_s)
+
+    @text[type.to_sym] = text
+
+    self
+  end
+
+  public
+  def mod(mod, subtitle, arg, valid = true)
+    return self unless @valid_values[:mod].include?(mod.to_s)
+
+    @mods[mod.to_sym] = {
+      subtitle: subtitle,
+      arg: arg,
+      valid: valid
+    }
+
+    self
+  end
+
+  public
+  def to_hash
+    keys = [
+      'arg',
+      'autocomplete',
+      'icon',
+      'mods',
+      'quicklookurl',
+      'subtitle',
+      'text',
+      'title',
+      'type',
+      'uid',
+      'valid',
+    ]
+
+    result = {}
+
+    keys.each { |key|
+      result[key.to_sym] = self.instance_variable_get("@#{key}")
+    }
+
+    result.select { |hash_key, hash_value|
+      (hash_value.class.to_s === 'Hash' &amp;&amp; !hash_value.empty?) || (hash_value.class.to_s != 'Hash' &amp;&amp; !hash_value.nil?)
+    }
+  end
+
+  def method_missing(method, *arguments)
+    if @simple_values.include?(method.to_s)
+      self.instance_variable_set("@#{method}", arguments.first)
+      return self
+    end
+
+    if @valid_values[:mod].include?(method.to_s)
+      return mod(method, *arguments)
+    end
+
+    if @valid_values[:text].include?(method.to_s)
+      return text(method, *arguments)
+    end
+
+    super
+  end
+
+  def respond_to?(method, include_private = false)
+    if @simple_values.include?(method.to_s)
+      return true
+    end
+
+    if @valid_values[:mod].include?(method.to_s)
+      return true
+    end
+
+    if @valid_values[:text].include?(method.to_s)
+      return true
+    end
+
+    super
+  end
+
+end
+
+module Alfred3
+  class Workflow
+
+    def initialize
+      @results = []
+    end
+
+    public
+    def result
+      result = Result.new
+      @results &lt;&lt; result
+      result
+    end
+
+    public
+    def sort_results(direction = 'asc', property = 'title')
+      @results.sort! { |r1, r2|
+        r1_prop = r1.instance_variable_get("@#{property}")
+        r2_prop = r2.instance_variable_get("@#{property}")
+        multiplier = direction === 'asc' ? 1 : -1
+        (r1_prop &lt;=&gt; r2_prop) * multiplier
+      }
+
+      self
+    end
+
+    public
+    def filter_results(query, property = 'title')
+      query = query.to_s.strip.downcase
+
+      return self if query.length === 0
+
+      @results.select! { |result|
+        result.instance_variable_get("@#{property}").downcase.include? query
+      }
+
+      self
+    end
+
+    public
+    def output
+      {
+        items: @results.map { |result|
+          result.to_hash
+        }
+      }.to_json
+    end
+
+  end
+end
+
+
+
+class DictWorkFlow
+  FILENAME = 'cmodbnkkcf-52898166-ea5ea5.txt'.freeze
+  ALPHABET = ('a'..'z').to_a
+
+  def indexing_required?
+    !File.exist?('A' + '_' + FILENAME)
+  end
+
+  def dictionary_missing?
+    !File.exist?(FILENAME)
+  end
+
+  def clean_index
+    ALPHABET.each do |letter|
+      File.delete(letter + '_' + FILENAME)
+    end
+  end
+
+  def first_letter_from_line(line)
+    first_letter = line[0].downcase
+    first_letter = '@' unless ALPHABET.include? first_letter
+    first_letter
+  end
+
+  def generate_index
+    full = File.readlines(FILENAME)
+    full.select! do | line | 
+      ALPHABET.include?(line[0].downcase) &amp;&amp; line.split("\t").include?("noun")
+    end
+    memo = {}
+    full.each do |line|
+      first_letter = first_letter_from_line(line)
+      memo[first_letter] = [] if memo[first_letter].nil?
+      memo[first_letter] &lt;&lt; line
+    end
+    memo.each do |initial, line|
+      File.open(initial + '_' + FILENAME, 'w+') { |f| f.puts(line.sort) }
+    end
+  end
+
+  def gender_from_word(word)
+    if word.split(' ').include? '{f}'
+      'icons/f.png'
+    elsif word.split(' ').include? '{n}'
+      'icons/n.png'
+    elsif word.split(' ').include? '{m}'
+      'icons/m.png'
+    elsif word.split(' ').include? '{pl}'
+      'icons/pl.png'
+    end
+  end
+
+  def row_matches(input)
+    first_letter = input[0].downcase
+    lines = File.readlines(first_letter + '_' + FILENAME)
+    lines.select! { |line| line.downcase.start_with? input }# input.downcase }
+    lines
+  end
+
+  def rows_to_hash(rows)
+    rows.map do |row|
+      component = row.split("\t")
+      everything_else = component[1..-1].join(' ').strip!
+      name = component.first
+      { name: name,
+        definition: everything_else,
+        gender: gender_from_word(name) }
+    end
+  end
+
+  def hashes_to_alfred_output(hashes)
+    hashes = hashes[0..100]
+    workflow = Alfred3::Workflow.new
+    hashes.each do | hash |
+      name = hash[:name]
+      gender_icon = gender_from_word(name)
+      workflow.result
+        .uid('create_index')
+        .title(name)
+        .subtitle(hash[:definition])
+        .icon(gender_icon)
+    end
+    print workflow.output
+  end
+end
+
+
+
+input = "{query}".downcase
+workflow = Alfred3::Workflow.new
+dw = DictWorkFlow.new
+
+if input == "wf:generate_index"
+  dw.generate_index
+  workflow.result
+        .uid('create_index')
+        .title('Indexes created')
+        .subtitle('You can now perform a new search')
+        .icon('icons/checked.png')
+  print workflow.output
+  exit 0
+end
+
+if input == "wf:clear_index"
+  dw.clean_index
+  workflow.result
+        .uid('clean_index')
+        .title('Index cleared')
+        .subtitle('You can now perform a new search')
+        .icon('icons/checked.png')
+  print workflow.output
+  exit 0
+end
+
+if dw.dictionary_missing?
+  workflow.result
+        .uid('missing_index')
+        .title('Dictionary is missing')
+        .subtitle('Please read the instruction on github.com/ignazio/dictcc')
+        .quicklookurl('http://github.com/ignazioc')
+        .icon('icons/warning.png')
+  print workflow.output
+  exit 0
+end
+
+if dw.indexing_required?
+  workflow = Alfred3::Workflow.new
+  workflow.result
+        .uid('missing_index')
+        .title('Create the index')
+        .subtitle('Select this action to create the index. Takes up to 20 seconds')
+        .quicklookurl('http://github.com/ignazioc')
+        .icon('icons/warning.png')
+        .autocomplete('wf:generate_index')
+  print workflow.output
+  exit 0
+end
+
+
+print input == "bär"
+rows = dw.row_matches(input)
+results = dw.rows_to_hash(rows)
+print dw.hashes_to_alfred_output(results)
+</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string>dict_cc.rb</string>
+				<key>subtext</key>
+				<string></string>
+				<key>title</key>
+				<string>Der Die oder Das? (based on dict.cc)</string>
+				<key>type</key>
+				<integer>8</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>7DD3BDE5-A157-42E5-9376-F681FB50A4EE</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string></string>
+	<key>uidata</key>
+	<dict>
+		<key>7DD3BDE5-A157-42E5-9376-F681FB50A4EE</key>
+		<dict>
+			<key>colorindex</key>
+			<integer>4</integer>
+			<key>xpos</key>
+			<integer>160</integer>
+			<key>ypos</key>
+			<integer>100</integer>
+		</dict>
+	</dict>
+	<key>webaddress</key>
+	<string>ignazioc.com</string>
+</dict>
+</plist>
