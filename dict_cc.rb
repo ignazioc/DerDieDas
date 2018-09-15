@@ -4,7 +4,7 @@ require_relative 'result'
 require_relative 'alfred3_workflow'
 
 class DictWorkFlow
-  FILENAME = 'cmodbnkkcf-52898166-ea5ea5.txt'.freeze
+  FILENAME = 'full_dictionary.txt'.freeze
   ALPHABET = ('a'..'z').map(&:upcase).to_a
 
   def indexing_required?
