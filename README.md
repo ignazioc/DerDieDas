@@ -33,3 +33,5 @@ Now eveything is setup and you can do your searches
 
 *Note:* 
 Thanks to deanishe from the Alfred forum, who helped me understand the hidden mystery of NSTask and _unicode normalization_
+
+<div>Icons made by <a href="http://www.freepik.com" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div>
